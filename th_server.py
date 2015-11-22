@@ -11,7 +11,7 @@ from threading import Thread
 
 print >> sys.stderr , "hello"
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-server_address = ('localhost', 20861)
+server_address = ('localhost', 20884)
 server_socket.bind(server_address)
 packet_size = 1060
 data_Size = 1024
@@ -19,8 +19,8 @@ base = 0
 nextSeq = 0
 start_Timer = 0
 timer_Timeout = 0
-window_Size = 3
-last_ACK = 0
+window_Size = 5
+last_ACK = -1
 
 print >> sys.stderr, ' \n********* Starting up on %s port %s *********' % server_address
 
@@ -82,34 +82,71 @@ def th_send(client_address):
     global timer_Timeout
     
     N = 0
-    while ((N < No_Of_Packets+1)):
+    while ((N < No_Of_Packets)):
         print >> sys.stderr, "\nN = %s" %N
         print >> sys.stderr , "\ninside thread send"
-        if((base == nextSeq ) & (timer_Timeout != 1)):
-            for i in range(3):
+        if(No_Of_Packets - last_ACK < window_Size ):
+            print >> sys.stderr , "begin to send last window of the file"
+            print >> sys.stderr , "No_Of_Packets = %s" %No_Of_Packets
+            print >> sys.stderr , "last_ACK = %s" %last_ACK
+            
+            k = No_Of_Packets - last_ACK - 1
+            print >> sys.stderr , "packets in last window are : %s" %k
+            for i in range(k):
+                pack = MakePacket_GBN(N)
+                sent = server_socket.sendto(pack, client_address)
+                nextSeq = nextSeq + 1
+                N = N + 1
+                print >> sys.stderr, "inside last frame , N = %s" %N
+
+            message = 'EOF'
+            sent = server_socket.sendto(message, client_address)
+        
+        if((base == nextSeq ) & (timer_Timeout != 1)):#standard case
+            for i in range(window_Size):
                 pack = MakePacket_GBN(N)
                 sent = server_socket.sendto(pack, client_address)
                 nextSeq = nextSeq + 1
                 N = N + 1
 
             start_Timer = 1
-            sleep(0.005)
+            sleep(0.05)
 
-        else:
+        elif((base != nextSeq ) & (timer_Timeout != 1)):# slide window here
             print >> sys.stderr , "\n base = %s" %base
             print >> sys.stderr, "\n nextSeq = %s" %nextSeq
             
-            while(nextSeq < (base + window_Size) & (timer_Timeout != 1)):
-                pack = MakePacket_GBN(N)
-                sent = server_socket.sendto(pack, client_address)
-                nextSeq = nextSeq + 1
+            n = last_ACK - base # decide how many times window is to be slided
+            for i in range(n):
+                '''while(nextSeq < (base + window_Size) & (timer_Timeout != 1)):'''
+                if(nextSeq < (base + window_Size)):
+                   N = last_ACK + 1
+                   pack = MakePacket_GBN(N)
+                   sent = server_socket.sendto(pack, client_address)
+                   nextSeq = nextSeq + 1
                 
         if(timer_Timeout == 1):
-            print >> sys.stderr , "\n timer expired detected"
-            N = base + 1
-            pack = MakePacket_GBN(N)
-            sent = server_socket.sendto(pack, client_address)
-            nextSeq = nextSeq + 1           
+                   if((base == nextSeq)):
+                      print >> sys.stderr , "Timer expired and base == nextSeq"
+                      for i in range(window_Size):
+                          pack = MakePacket_GBN(N)
+                          sent = server_socket.sendto(pack, client_address)
+                          nextSeq = nextSeq + 1
+                          N = N + 1
+
+                      start_Timer = 1
+                      sleep(0.05)
+                      
+                   else:
+                      if(nextSeq < (base + window_Size)):
+                         print >> sys.stderr , "Timer expired and nextSeq < (base + window_Size"
+                         n = last_ACKs - base # decide how many times window is to be slided
+                         for i in range(n):
+                            if(nextSeq < (base + window_Size)):
+                               N = last_ACK + 1
+                               pack = MakePacket_GBN(N)
+                               sent = server_socket.sendto(pack, client_address)
+                               nextSeq = nextSeq + 1
 
 def deassembleACK_Packet(recv_packet):
     ack_received = recv_packet[0:16]
@@ -183,7 +220,6 @@ def MakePacket_GBN(packet_No):
     sq_bin = bin(packet_No)
     sq_bin = str(sq_bin)[2:]
     sq_bin = sq_bin.zfill(16)
-    print >> sys.stderr , "sq_bin = %s" %sq_bin
 
     
     checksum = cal_Checksum(packet_No)

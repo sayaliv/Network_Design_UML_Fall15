@@ -13,7 +13,7 @@ received_Packet = -1
 packet_size = 1024
 buff = 1060
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-server_address = ('localhost', 20861)
+server_address = ('localhost', 20884)
 
 print >> sys.stderr , "************Client started***********"
 
@@ -104,6 +104,7 @@ def th_receive():
                     file.write(file_data)
                     print >> sys.stderr , " received_Packet = %s" %received_Packet
                     received_Packet = sq_int
+                    print >> sys.stderr , " received_Packet = %s" %received_Packet
                     sent = client_socket.sendto(sq_receive, server_address)
                     print >> sys.stderr , " sq send = %s" %sq_receive
 
@@ -116,17 +117,9 @@ def th_receive():
 def N0_Errors():
     print >> sys.stderr , "inside function"
     t1_receive1= Thread(target=th_receive, args=())
-    '''t3_receive3 = Thread(target=th_receive, args=())
-    t2_receive2 = Thread(target=th_receive, args=())'''
 
-    
     t1_receive1.start()
-    '''t2_receive2.start()
-    t3_receive3.start()'''
-
     t1_receive1.join()
-    '''t2_receive2.join()
-    t3_receive3.join()'''
     
 def manage_FileNames():
     f_name = "C:\\Users\\sayal\\Downloads\\new_test.jpg"
@@ -154,10 +147,6 @@ while (bClose != 1 & bExit == 1):
 
     if(data == 'Option 1 Selected by receiver'):
         N0_Errors()
-
-    elif(data == 'Option 2 Selected by receiver'):
-        Data_PKT_LOSS()
-
         
 client_socket.close()        
         
