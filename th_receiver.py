@@ -154,6 +154,10 @@ while (bClose != 1 & bExit == 1):
 
     if(data == 'Option 1 Selected by receiver'):
         N0_Errors()
+
+    elif(data == 'Option 2 Selected by receiver'):
+        Data_PKT_LOSS()
+
         
 client_socket.close()        
         
